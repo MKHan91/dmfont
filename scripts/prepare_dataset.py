@@ -4,6 +4,8 @@ Copyright (c) 2020-present NAVER Corp.
 MIT license
 """
 import os
+import sys
+sys.path.append(os.getcwd())
 import json
 from itertools import chain
 from functools import reduce
@@ -36,6 +38,7 @@ def get_code_points(language):
     return codes
 
 
+# region - dump hdf5
 def dump_to_hdf5(dump_path, font_name, images, chars, compression=None):
     with h5.File(dump_path, 'w') as f:
         dset = f.create_group('dataset')
@@ -44,7 +47,7 @@ def dump_to_hdf5(dump_path, font_name, images, chars, compression=None):
         dset.create_dataset('images', (N, 128, 128), np.uint8, compression=compression,
                             data=np.stack(images))
         data = np.array(chars)
-        dset.create_dataset('chars', data.shape, np.int, compression=compression,
+        dset.create_dataset('chars', data.shape, int, compression=compression,
                             data=np.array(chars))
 
 
@@ -75,13 +78,19 @@ class FontProcessor(object):
     def is_renderable_char(self, font, ch):
         ch = self.fix_char_order_if_thai(ch)
         try:
-            size = reduce(lambda x, y: x * y, font.getsize(ch))
+            # size = reduce(lambda x, y: x * y, font.getsize(ch))
+            bbox = font.getbbox(ch)
+            width, height = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            size = width * height
         except OSError:
             self.logger.warning('{}, "{}" ({}) cannot be opened'.format(font, ch, self.ord(ch)))
             return False
         if not size:
+            bbox = font.getbbox(ch)
+            width, height = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            size = width * height
             self.logger.warning('{}, "{}" ({}) has size {}'.format(
-                font, ch, self.ord(ch), font.getsize(ch))
+                font, ch, self.ord(ch), size)
             )
             return False
 
@@ -96,50 +105,89 @@ class FontProcessor(object):
 
     def get_charsize(self, char, font):
         char = self.fix_char_order_if_thai(char)
-        size_x, size_y = font.getsize(char)
-        offset_x, offset_y = font.getoffset(char)
+        
+        bbox = font.getbbox(char)  # returns (x0, y0, x1, y1)
+        size_x = bbox[2] - bbox[0]  # width
+        size_y = bbox[3] - bbox[1]  # height
+        
+        # size_x, size_y = font.getsize(char)
+        # offset_x, offset_y = font.getoffset(char)
+        mask = font.getmask(char)
+        bbox = mask.getbbox()  # returns (x0, y0, x1, y1)
+
+        if bbox is not None:
+            offset_x, offset_y = bbox[0], bbox[1]
+        else:
+            offset_x, offset_y = 0, 0  # 문자 출력이 없을 경우 기본값
 
         return size_x-offset_x, size_y-offset_y
 
     def render_center_no_offset(self, char, font, fontmaxsize, size=128, margin=0):
         char = self.fix_char_order_if_thai(char)
-        size_x, size_y = font.getsize(char)
-        offset_x, offset_y = font.getoffset(char)
-        roi_w = size_x-offset_x
-        roi_h = size_y-offset_y
-        img = Image.new('L', (roi_w, roi_h), 255)
-        draw = ImageDraw.Draw(img)
-        draw.text((-offset_x, -offset_y), char, font=font)
-
-        if img.size[0] == 0 or img.size[1] == 0:
+        # size_x, size_y = font.getsize(char)
+        bbox = font.getbbox(char)  # returns (x0, y0, x1, y1)
+        if bbox is None:
             self.logger.warning(
-                '{}, "{}" ({}) is empty (size=0)'.format(font, char, self.ord(char))
+                '{}, "{}" ({}) has no bounding box'.format(font, char, self.ord(char))
             )
             return False
+        
+        x0, y0, x1, y1 = bbox
+        roi_w = x1 - x0
+        roi_h = y1 - y0
 
+        if roi_w <= 0 or roi_h <= 0:
+            self.logger.warning(
+                '{}, "{}" ({}) has non-positive size (w={}, h={})'.format(font, char, self.ord(char), roi_w, roi_h)
+            )
+            return False
+        
+        img = Image.new("L", (roi_w, roi_h), 255)
+        draw = ImageDraw.Draw(img)
+        draw.text((-x0, -y0), char, font=font, fill=0)
+        
+        # Check for empty image
         npimg = 255 - np.array(img)
         if not npimg.sum():
             self.logger.warning(
-                '{}, "{}" ({}) is empty (no black)'.format(font, char, self.ord(char))
+                '{}, "{}" ({}) is empty (no black pixels)'.format(font, char, self.ord(char))
             )
             return False
-        wmin = npimg.sum(0).nonzero()[0].min()
-        wmax = npimg.sum(0).nonzero()[0].max()
-        hmin = npimg.sum(1).nonzero()[0].min()
-        hmax = npimg.sum(1).nonzero()[0].max()
+
+        # Crop non-white region
+        wsum = npimg.sum(0)
+        hsum = npimg.sum(1)
+        w_indices = wsum.nonzero()[0]
+        h_indices = hsum.nonzero()[0]
+
+        if len(w_indices) == 0 or len(h_indices) == 0:
+            self.logger.warning(
+                '{}, "{}" ({}) is empty after cropping'.format(font, char, self.ord(char))
+            )
+            return False
+
+        wmin, wmax = w_indices.min(), w_indices.max()
+        hmin, hmax = h_indices.min(), h_indices.max()
 
         npimg = 255 - npimg[hmin:hmax+1, wmin:wmax+1]
-        canvas_size = int(fontmaxsize*(1+margin))
 
-        left_margin = (canvas_size - roi_w)//2
-        right_margin = canvas_size - roi_w - left_margin
-        top_margin = (canvas_size - roi_h)//2
-        bottom_margin = canvas_size - roi_h - top_margin
+        # Calculate canvas with margin
+        canvas_size = int(fontmaxsize * (1 + margin))
+        content_h, content_w = npimg.shape
+        left_margin = (canvas_size - content_w) // 2
+        right_margin = canvas_size - content_w - left_margin
+        top_margin = (canvas_size - content_h) // 2
+        bottom_margin = canvas_size - content_h - top_margin
 
+        # Pad and resize
         npimg = np.pad(npimg, ((top_margin, bottom_margin), (left_margin, right_margin)),
-                       'constant', constant_values=255)
+                    'constant', constant_values=255)
+        if np.sum(npimg) == 0:
+            a=1
+
         img = Image.fromarray(npimg).resize((size, size), resample=self.resize_method)
 
+        
         return img
 
     def dump_fonts(self, fonts, dump_dir, compression=None):
@@ -160,6 +208,9 @@ class FontProcessor(object):
         for i, targetfontpath in enumerate(fonts):
             targetfontname = os.path.basename(targetfontpath)  # w/ ext
             font_name = os.path.splitext(targetfontname)[0]  # w/o ext
+            
+            # if font_name != "UhBee Skyrain": continue
+            
             hdf5_name = "{}.hdf5".format(font_name)
             dump_path = dump_dir / hdf5_name
 
@@ -196,6 +247,8 @@ class FontProcessor(object):
                     self.logger.error("Wrong codepoint: {}".format(codepoint))
                     raise ValueError(codepoint)
 
+                # if codepoint == '쟈':
+                #     a=1
                 img = self.render_center_no_offset(codepoint, font, fontmaxsize,
                                                    size=self.sample_size, margin=0)
                 if not img:
@@ -231,9 +284,18 @@ def main(language, fonts_dir, meta_path, dump_dir):
 
     meta = json.load(open(meta_path))
     allfonts = set(meta['train']['fonts'] + meta['valid']['fonts'])
+    # allfonts = set(meta['valid']['fonts'])
     fonts = [
         str(fname) for fname in fonts_dir.rglob("*.ttf") if fname.name in allfonts
     ]
+    
+
+    standard_allfonts = sorted(os.listdir("/home/dev/dmfont/datasets/all_fonts"))
+    custom_allfonts = sorted(allfonts)
+    for custom in custom_allfonts:
+        if not custom in standard_allfonts:
+            print(custom)
+    
     assert len(allfonts) == len(fonts)
 
     processor = FontProcessor(language)
@@ -241,4 +303,7 @@ def main(language, fonts_dir, meta_path, dump_dir):
 
 
 if __name__ == '__main__':
-    fire.Fire(main)
+    # fire.Fire(main)
+    main(language='kor', fonts_dir='/home/dev/dmfont/datasets/all_fonts',
+         meta_path='/home/dev/dmfont/meta/kor_split2.json',
+         dump_dir='/home/dev/dmfont/datasets/hdf5')

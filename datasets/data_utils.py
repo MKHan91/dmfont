@@ -21,10 +21,12 @@ def rev_dict(l):
 def uniform_indices(end, n_sample, st=None):
     """ Sample from [0, end) with (almost) equidistant interval """
     if end <= 0:
-        return np.empty(0, dtype=np.int)
+        # return np.empty(0, dtype=np.int)
+        return np.empty(0, dtype=int)
 
     # NOTE with endpoint=False, np.linspace does not sample the `end` value
-    indices = np.linspace(0, end, num=n_sample, dtype=np.int, endpoint=False)
+    # indices = np.linspace(0, end, num=n_sample, dtype=np.int, endpoint=False)
+    indices = np.linspace(0, end, num=n_sample, dtype=int, endpoint=False)
     if st is None and end:
         st = (end-1 - indices[-1]) // 2
     return indices + st

@@ -27,6 +27,7 @@ from trainer import Trainer, load_checkpoint
 from evaluator import Evaluator
 
 
+# region - dataset loader
 def get_dset_loader(data, avail_fonts, avail_chars, transform, shuffle, cfg, content_font=None):
     dset, collate_fn = get_ma_dataset(
         data,
@@ -42,6 +43,10 @@ def get_dset_loader(data, avail_fonts, avail_chars, transform, shuffle, cfg, con
 
     return dset, loader
 
+# ufuc_dset, ufuc_loader = get_val_dset_loader(
+#     hdf5_data, meta['valid']['fonts'], meta['valid']['chars'], val_chars, val_transform,
+#     batch_size, n_workers, n_max_match, content_font, cfg['language']
+# )
 
 def get_val_dset_loader(data, avail_fonts, avail_chars, trn_avail_chars, transform,
                         batch_size, n_workers=2, n_max_match=3, content_font=None, language=None):
@@ -68,8 +73,8 @@ def get_val_dset_loader(data, avail_fonts, avail_chars, trn_avail_chars, transfo
 
 def setup_args_and_config():
     parser = argparse.ArgumentParser('MaHFG')
-    parser.add_argument("name")
-    parser.add_argument("config_paths", nargs="+")
+    parser.add_argument("--name", default='test')
+    parser.add_argument("--config_paths", nargs='+', default=['cfgs/kor.yaml'])
     parser.add_argument("--show", action="store_true", default=False)
     parser.add_argument("--resume", default=None)
     parser.add_argument("--log_lv", default='info')
@@ -104,6 +109,7 @@ def setup_args_and_config():
 
 def setup_language_dependent(cfg):
     if cfg['language'] == 'kor':
+        # content_font = "JinbeopUnhae.ttf"
         content_font = "NanumBarunpenR.ttf"
         n_comp_types = 3  # cho, jung, jong
         n_comps = kor.N_COMPONENTS
@@ -132,9 +138,11 @@ def setup_data(cfg, val_transform):
 
     return hdf5_data, meta
 
-
+# region - VALID LOADER
 def setup_cv_dset_loader(hdf5_data, meta, val_transform, n_comp_types, content_font, cfg):
     trn_chars = meta['train']['chars']
+    val_chars = meta['valid']['chars']
+    
     batch_size = cfg['batch_size'] * 3
     n_workers = cfg['n_workers']
     n_max_match = n_comp_types  # for validation dset
@@ -148,15 +156,27 @@ def setup_cv_dset_loader(hdf5_data, meta, val_transform, n_comp_types, content_f
         hdf5_data, meta['valid']['fonts'], meta['train']['chars'], trn_chars, val_transform,
         batch_size, n_workers, n_max_match, content_font, cfg['language']
     )
+    
+    # added
+    exception_str = ["\u3131", "\u3132", "\u3134", "\u3137", "\u3138", "\u3139", "\u3141", "\u3142", 
+                     "\u3143", "\u3145", "\u3146", "\u3147", "\u3148", "\u3149", "\u314a", "\u314b", 
+                     "\u314c", "\u314d", "\u314e", "\u314f", "\u3150", "\u3151", "\u3152", "\u3153", 
+                     "\u3154", "\u3155", "\u3156", "\u3157", "\u3158", "\u3159", "\u315a", "\u315b", 
+                     "\u315c", "\u315d", "\u315e", "\u315f", "\u3160", "\u3161", "\u3162", "\u3163"]
+    meta['valid']['chars'] = [char for char in meta['valid']['chars'] if not char in exception_str]
+    val_chars = meta['valid']['chars']
+    
     # unseen fonts, unseen chars
     ufuc_dset, ufuc_loader = get_val_dset_loader(
-        hdf5_data, meta['valid']['fonts'], meta['valid']['chars'], trn_chars, val_transform,
+        hdf5_data, meta['valid']['fonts'], meta['valid']['chars'], val_chars, val_transform,
         batch_size, n_workers, n_max_match, content_font, cfg['language']
     )
+    
+    
     # setup val_loaders
     val_loaders = {
-        "SeenFonts-UnseenChars": sfuc_loader,
-        "UnseenFonts-SeenChars": ufsc_loader,
+        # "SeenFonts-UnseenChars": sfuc_loader,
+        # "UnseenFonts-SeenChars": ufsc_loader,
         "UnseenFonts-UnseenChars": ufuc_loader
     }
 
@@ -237,10 +257,9 @@ def main():
         transforms.Normalize([0.5], [0.5])
     ])
 
-    # setup data
     hdf5_data, meta = setup_data(cfg, transform)
 
-    # setup dataset
+    # region - train dataset
     trn_dset, loader = get_dset_loader(
         hdf5_data, meta['train']['fonts'], meta['train']['chars'], transform, True, cfg,
         content_font=content_font
@@ -252,25 +271,26 @@ def main():
     logger.info("# of avail items = {}".format(trn_dset.n_avails))
     logger.info(f"#fonts = {trn_dset.n_fonts}, #chars = {trn_dset.n_chars}")
 
+    # region - val dataset
     val_loaders = setup_cv_dset_loader(
         hdf5_data, meta, transform, n_comp_types, content_font, cfg
     )
-    sfuc_loader = val_loaders['SeenFonts-UnseenChars']
-    sfuc_dset = sfuc_loader.dataset
-    ufsc_loader = val_loaders['UnseenFonts-SeenChars']
-    ufsc_dset = ufsc_loader.dataset
+    # sfuc_loader = val_loaders['SeenFonts-UnseenChars']
+    # sfuc_dset = sfuc_loader.dataset
+    # ufsc_loader = val_loaders['UnseenFonts-SeenChars']
+    # ufsc_dset = ufsc_loader.dataset
     ufuc_loader = val_loaders['UnseenFonts-UnseenChars']
     ufuc_dset = ufuc_loader.dataset
 
     logger.info("### Cross-validation datasets ###")
-    logger.info(
-        "Seen fonts, Unseen chars | "
-        "#items = {}, #fonts = {}, #chars = {}, #steps = {}".format(
-            len(sfuc_dset), len(sfuc_dset.fonts), len(sfuc_dset.chars), len(sfuc_loader)))
-    logger.info(
-        "Unseen fonts, Seen chars | "
-        "#items = {}, #fonts = {}, #chars = {}, #steps = {}".format(
-            len(ufsc_dset), len(ufsc_dset.fonts), len(ufsc_dset.chars), len(ufsc_loader)))
+    # logger.info(
+    #     "Seen fonts, Unseen chars | "
+    #     "#items = {}, #fonts = {}, #chars = {}, #steps = {}".format(
+    #         len(sfuc_dset), len(sfuc_dset.fonts), len(sfuc_dset.chars), len(sfuc_loader)))
+    # logger.info(
+    #     "Unseen fonts, Seen chars | "
+    #     "#items = {}, #fonts = {}, #chars = {}, #steps = {}".format(
+    #         len(ufsc_dset), len(ufsc_dset.fonts), len(ufsc_dset.chars), len(ufsc_loader)))
     logger.info(
         "Unseen fonts, Unseen chars | "
         "#items = {}, #fonts = {}, #chars = {}, #steps = {}".format(

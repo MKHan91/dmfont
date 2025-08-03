@@ -38,6 +38,29 @@ def decompose(char):
     elif COMPONENT_RANGE[0] <= char_code <= COMPONENT_RANGE[1]:
         char_code -= COMPONENT_RANGE[0]
         raise ValueError('Component only ({})'.format(char))
+        # CHOSUNG_LIST = [
+        #     'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ',
+        #     'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ',
+        #     'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+        # ]
+        
+        # JUNGSUNG_LIST = [
+        #     'ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ',
+        #     'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ',
+        #     'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ',
+        #     'ㅡ', 'ㅢ', 'ㅣ'
+        # ]
+        # if char in CHOSUNG_LIST:
+        #     cho = CHOSUNG_LIST.index(char)
+        #     jung = 0
+        #     jong = 0
+        #     char_id = (1, cho, jung, jong)
+        # elif char in JUNGSUNG_LIST:
+        #     cho = 0
+        #     jung = JUNGSUNG_LIST.index(char)
+        #     jong = 0
+        #     char_id = (2, cho, jung, jong)
+        
     else:
         raise ValueError('{} is Non kor'.format(char))
 

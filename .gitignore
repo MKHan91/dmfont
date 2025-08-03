@@ -21,3 +21,6 @@ runs
 fonts
 test_cv/
 test_us/
+*.ttf
+*.jpg
+*.hdf5

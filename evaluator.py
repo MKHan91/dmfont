@@ -42,6 +42,11 @@ def torch_eval(val_fn):
     return decorated
 
 
+def get_all_hangul_chars():
+    return [chr(code) for code in range(0xAC00, 0xD7A4)]
+
+
+# region - Evaluator
 class Evaluator:
     """DMFont evaluator.
     The evaluator provides pixel-level evaluation and glyphs generation
@@ -143,6 +148,7 @@ class Evaluator:
 
         return comparable_grid
 
+    # region - cross valid
     @torch_eval
     def cross_validation(self, gen, step, loader, tag, n_batches, n_log=64, save_dir=None):
         """Validation using splitted cross-validation set
@@ -159,6 +165,9 @@ class Evaluator:
         n_accum = 0
 
         losses = utils.AverageMeters("l1", "ssim", "msssim")
+        
+        hangul_chars = get_all_hangul_chars()
+        
         for i, (style_ids, style_comp_ids, style_imgs,
                 trg_ids, trg_comp_ids, content_imgs, trg_imgs) in enumerate(loader):
             if i == n_batches:
@@ -172,6 +181,24 @@ class Evaluator:
             trg_imgs = trg_imgs.cuda()
 
             gen.encode_write(style_ids, style_comp_ids, style_imgs)
+            
+            for idx, char in enumerate(hangul_chars):
+                print(f"{char} \t {idx+1}/{len(hangul_chars)}")
+                comps = kor.decompose(char)
+                comps = torch.tensor(comps, device='cuda')
+                comps = comps.unsqueeze(0)
+
+                try:
+                    gen_out = gen.read_decode(trg_ids[0].unsqueeze(0), comps)
+                except KeyError:
+                    continue
+                # gen_out = (gen_out - gen_out.min()) / (gen_out.max() - gen_out.min() + 1e-5)
+                # gen_out = gen_out[0].permute(1, 2, 0)
+                # gen_out = gen_out.cpu().numpy()
+                gen_out = gen_out[0]
+                utils.save_tensor_to_image(gen_out, f"/home/dev/dmfont/results/Jinbeop/{char}.png")
+                
+                
             out = gen.read_decode(trg_ids, trg_comp_ids)
             B = len(out)
 
@@ -342,6 +369,8 @@ class Evaluator:
         self.writer.add_image(name, merge, global_step=step)
 
 
+
+# region - EVAL
 def eval_ckpt():
     from train import (
         setup_language_dependent, setup_data, setup_cv_dset_loader,
@@ -352,14 +381,15 @@ def eval_ckpt():
 
     parser = argparse.ArgumentParser('MaHFG-eval')
     parser.add_argument(
-        "name", help="name is used for directory name of the user-study generation results"
+        "--name", help="name is used for directory name of the user-study generation results",
+        default='JinbeopUnhae'
     )
-    parser.add_argument("resume")
-    parser.add_argument("img_dir")
-    parser.add_argument("config_paths", nargs="+")
+    parser.add_argument("--resume", default='/home/dev/dmfont/checkpoints/250717_04-46-31_test/150000-test.pth')
+    parser.add_argument("--img_dir", default='./results')
+    parser.add_argument("--config_paths", nargs="+", default=['cfgs/kor.yaml'])
     parser.add_argument("--show", action="store_true", default=False)
     parser.add_argument(
-        "--mode", default="eval",
+        "--mode", default="cv-save",
         help="eval (default) / cv-save / user-study / user-study-save. "
              "`eval` generates comparable grid and computes pixel-level CV scores. "
              "`cv-save` generates and saves all target characters in CV. "
@@ -463,6 +493,8 @@ def eval_ckpt():
         logger.info("Start validation ...")
         dic = evaluator.validation(gen, step)
         logger.info("Validation is done. Result images are saved to {}".format(args.img_dir))
+    
+    # region user-study
     elif args.mode.startswith('user-study'):
         meta = json.load(open('meta/kor-unrefined.json'))
         target_chars = meta['target_chars']
@@ -486,6 +518,7 @@ def eval_ckpt():
                 comparable=True, save_dir=save_dir
             )
         logger.info("Validation is done. Result images are saved to {}".format(args.img_dir))
+        
     elif args.mode == 'cv-save':
         save_dir = Path(args.img_dir) / "cv_images_{}".format(step)
         logger.info("Save CV results to {} ...".format(save_dir))

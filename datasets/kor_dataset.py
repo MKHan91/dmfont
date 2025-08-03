@@ -15,6 +15,7 @@ from .samplers import StyleSampler
 from .data_utils import rev_dict, sample, get_fonts, get_union_chars
 
 
+# region - STYLE
 class MAStyleFirstDataset(Dataset):
     """ Sampling style chars first and then generating target chars
         by combination of style components
@@ -94,6 +95,7 @@ class MAStyleFirstDataset(Dataset):
             ####################################################
             style_imgs, style_chars = self.style_sampler.get(font_name, ret_values=True)
             style_comp_ids = [decompose(char) for char in style_chars]
+            
             chos, jungs, jongs = list(map(set, zip(*style_comp_ids)))
 
             # fullcomb
@@ -177,6 +179,7 @@ class MAStyleFirstDataset(Dataset):
         return ret
 
 
+# region - TARGET
 class MATargetFirstDataset(Dataset):
     """
     MAStyleFirstDatset samples source style characters first and then determines target characters.
@@ -237,15 +240,23 @@ class MATargetFirstDataset(Dataset):
         trg_comp_ids = decompose(trg_char)
         style_chars = []
         style_comps_list = []
+        # for i, _ in enumerate(trg_comp_ids):
+        #     avail_comps_list = list(
+        #         filter(
+        #             lambda comp_ids: comp_ids[i] == trg_comp_ids[i] \
+        #                     and is_allowed_matches(comp_ids, trg_comp_ids),
+        #             self.style_avail_comps_list[font_name]
+        #         )
+        #     )
+            
         for i, _ in enumerate(trg_comp_ids):
-            avail_comps_list = list(
-                filter(
-                    lambda comp_ids: comp_ids[i] == trg_comp_ids[i] \
-                            and is_allowed_matches(comp_ids, trg_comp_ids),
-                    self.style_avail_comps_list[font_name]
-                )
-            )
+            avail_comps_list = []
+            for comp_ids in self.style_avail_comps_list[font_name]:
+                if comp_ids[i] == trg_comp_ids[i] and is_allowed_matches(comp_ids, trg_comp_ids):
+                    avail_comps_list.append(comp_ids)
+            
             style_comp_ids = random.choice(avail_comps_list)
+            # for style_comp_ids in avail_comps_list:
             style_char = compose(*style_comp_ids)
 
             style_chars.append(style_char)
@@ -273,6 +284,14 @@ class MATargetFirstDataset(Dataset):
 
         content_img = self.style_data.get(self.content_font, trg_char, transform=self.transform)
 
+        # ret = (
+        #     style_ids,
+        #     torch.as_tensor(style_comp_ids),
+        #     style_imgs,
+        #     trg_ids,
+        #     torch.as_tensor(trg_comp_ids),
+        #     content_img
+        # )
         ret = (
             style_ids,
             torch.as_tensor(style_comp_ids),
@@ -337,6 +356,7 @@ def get_ma_dataset(hdf5_data, avail_fonts, avail_chars=None, transform=None, **k
 
 def get_ma_val_dataset(hdf5_data, fonts, chars, style_avails, n_max_match, transform, **kwargs):
     target_fc = {font_name: chars for font_name in fonts}
+    
     dset = MATargetFirstDataset(
         target_fc, style_avails, hdf5_data, n_max_match, transform=transform, **kwargs
     )

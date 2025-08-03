@@ -40,9 +40,16 @@ class HDF5Data(FCData):
         for path in hdf5_paths:
             with h5.File(path, 'r') as f:
                 font_name = f['dataset'].attrs['font_name']
+                # if 'Skyrain' in font_name:
+                #     a=1
                 self.fn2path[font_name] = path
                 # [:] for batch read
                 char2idx = self.make_char2idx(f['dataset']['chars'][:])
+
+                # if len(char2idx) <= 2202:
+                #     print(font_name)
+
+
                 self.cmap[font_name] = char2idx
 
                 self.n_items += len(char2idx)
@@ -93,9 +100,17 @@ class HDF5Data(FCData):
         path = self.fn2path[font_name]
 
         with h5.File(path, 'r') as f:
-            cidx = self.cmap[font_name][char]
+            try:
+                cidx = self.cmap[font_name][char]
+            except: 
+                a=1
             image = f['dataset']['images'][cidx]
-
+            try:
+                if len(image) == 0:
+                    a=1
+            except:
+                a=1
+            
         transform = transform or self.transform
 
         return transform(image)

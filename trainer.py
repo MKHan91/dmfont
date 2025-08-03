@@ -98,6 +98,7 @@ class Trainer:
             self.gen_ema.read_decode(trg_ids, trg_comp_ids)
         self.gen_ema.train(org_train_mode)
 
+    # region - TRAIN
     def train(self, loader, st_step=1, val=None):
         val = val or {}
         self.gen.train()
@@ -115,7 +116,8 @@ class Trainer:
 
         self.step = st_step
         self.clear_losses()
-
+        
+        # region - load data
         self.logger.info("Start training ...")
         for (style_ids, style_char_ids, style_comp_ids, style_imgs,
              trg_ids, trg_char_ids, trg_comp_ids, trg_imgs, *content_imgs) in cyclize(loader):

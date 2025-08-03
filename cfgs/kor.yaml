@@ -1,6 +1,8 @@
 # train
-data_dir: data/fonts-hdf5
-data_meta: meta/kor_split.json
+data_dir: /home/dev/dmfont/datasets/hdf5
+# data_meta: meta/kor_split.json
+# data_dir: /home/dev/dmfont/datasets/hdf5_tmp
+data_meta: meta/kor_split_valid.json
 language: kor
 batch_size: 12
 max_iter: 200000
@@ -54,7 +56,9 @@ ac_w: 0.1
 
 # etc
 save: all-last
-print_freq: 1000
-val_freq: 10000
+print_freq: 1
+val_freq: 1
+# print_freq: 1000
+# val_freq: 50000
 save_freq: 50000
 tb_freq: 10
