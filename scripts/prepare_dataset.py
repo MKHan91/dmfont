@@ -5,6 +5,7 @@ MIT license
 """
 import os
 import sys
+import os.path as osp
 sys.path.append(os.getcwd())
 import json
 from itertools import chain
@@ -182,8 +183,6 @@ class FontProcessor(object):
         # Pad and resize
         npimg = np.pad(npimg, ((top_margin, bottom_margin), (left_margin, right_margin)),
                     'constant', constant_values=255)
-        if np.sum(npimg) == 0:
-            a=1
 
         img = Image.fromarray(npimg).resize((size, size), resample=self.resize_method)
 
@@ -290,7 +289,7 @@ def main(language, fonts_dir, meta_path, dump_dir):
     ]
     
 
-    standard_allfonts = sorted(os.listdir("/home/dev/dmfont/datasets/all_fonts"))
+    standard_allfonts = sorted(os.listdir(f"{root_dir}/datasets/all_fonts"))
     custom_allfonts = sorted(allfonts)
     for custom in custom_allfonts:
         if not custom in standard_allfonts:
@@ -304,6 +303,12 @@ def main(language, fonts_dir, meta_path, dump_dir):
 
 if __name__ == '__main__':
     # fire.Fire(main)
-    main(language='kor', fonts_dir='/home/dev/dmfont/datasets/all_fonts',
-         meta_path='/home/dev/dmfont/meta/kor_split2.json',
-         dump_dir='/home/dev/dmfont/datasets/hdf5')
+    
+    # main(language='kor', fonts_dir='/home/dev/dmfont/datasets/all_fonts',
+    #      meta_path='/home/dev/dmfont/meta/kor_split2.json',
+    #      dump_dir='/home/dev/dmfont/datasets/hdf5')
+    
+    root_dir = os.getcwd()
+    main(language='kor', fonts_dir=f'{root_dir}/datasets/all_fonts',
+         meta_path=f'{root_dir}/meta/kor_split2.json',
+         dump_dir=f'{root_dir}/datasets/hdf5')

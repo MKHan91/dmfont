@@ -147,15 +147,15 @@ def setup_cv_dset_loader(hdf5_data, meta, val_transform, n_comp_types, content_f
     n_workers = cfg['n_workers']
     n_max_match = n_comp_types  # for validation dset
     # seen fonts, unseen chars -> same as original unseen validation
-    sfuc_dset, sfuc_loader = get_val_dset_loader(
-        hdf5_data, meta['train']['fonts'], meta['valid']['chars'], trn_chars, val_transform,
-        batch_size, n_workers, n_max_match, content_font, cfg['language']
-    )
-    # unseen fonts, seen chars
-    ufsc_dset, ufsc_loader = get_val_dset_loader(
-        hdf5_data, meta['valid']['fonts'], meta['train']['chars'], trn_chars, val_transform,
-        batch_size, n_workers, n_max_match, content_font, cfg['language']
-    )
+    # sfuc_dset, sfuc_loader = get_val_dset_loader(
+    #     hdf5_data, meta['train']['fonts'], meta['valid']['chars'], trn_chars, val_transform,
+    #     batch_size, n_workers, n_max_match, content_font, cfg['language']
+    # )
+    # # unseen fonts, seen chars
+    # ufsc_dset, ufsc_loader = get_val_dset_loader(
+    #     hdf5_data, meta['valid']['fonts'], meta['train']['chars'], trn_chars, val_transform,
+    #     batch_size, n_workers, n_max_match, content_font, cfg['language']
+    # )
     
     # added
     exception_str = ["\u3131", "\u3132", "\u3134", "\u3137", "\u3138", "\u3139", "\u3141", "\u3142", 
@@ -165,7 +165,6 @@ def setup_cv_dset_loader(hdf5_data, meta, val_transform, n_comp_types, content_f
                      "\u315c", "\u315d", "\u315e", "\u315f", "\u3160", "\u3161", "\u3162", "\u3163"]
     meta['valid']['chars'] = [char for char in meta['valid']['chars'] if not char in exception_str]
     val_chars = meta['valid']['chars']
-    
     # unseen fonts, unseen chars
     ufuc_dset, ufuc_loader = get_val_dset_loader(
         hdf5_data, meta['valid']['fonts'], meta['valid']['chars'], val_chars, val_transform,
@@ -203,20 +202,20 @@ def main():
     cfg['unique_name'] = unique_name  # for save directory
     cfg['name'] = args.name
 
-    utils.makedirs('logs')
-    utils.makedirs(Path('checkpoints', unique_name))
+    utils.makedirs('experiments/logs')
+    utils.makedirs(Path('experiments/checkpoints', unique_name))
 
     # logger
-    logger_path = Path('logs', f"{unique_name}.log")
+    logger_path = Path('experiments/logs', f"{unique_name}.log")
     logger = Logger.get(file_path=logger_path, level=args.log_lv, colorize=True)
 
     # writer
     image_scale = 0.6
-    writer_path = Path('runs', unique_name)
+    writer_path = Path('experiments/runs', unique_name)
     if args.tb_image:
         writer = utils.TBWriter(writer_path, scale=image_scale)
     else:
-        image_path = Path('images', unique_name)
+        image_path = Path('experiments/images', unique_name)
         writer = utils.TBDiskWriter(writer_path, image_path, scale=image_scale)
 
     # log default informations

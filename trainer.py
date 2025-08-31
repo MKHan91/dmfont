@@ -377,7 +377,7 @@ class Trainer:
             save_dic['aux_clf'] = self.aux_clf.state_dict()
             save_dic['ac_optimizer'] = self.ac_optim.state_dict()
 
-        ckpt_dir = Path("checkpoints", self.cfg['unique_name'])
+        ckpt_dir = Path("experiments/checkpoints", self.cfg['unique_name'])
         step_ckpt_name = "{:06d}-{}.pth".format(self.step, self.cfg['name'])
         last_ckpt_name = "last.pth"
         step_ckpt_path = ckpt_dir / step_ckpt_name

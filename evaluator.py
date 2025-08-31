@@ -182,23 +182,24 @@ class Evaluator:
 
             gen.encode_write(style_ids, style_comp_ids, style_imgs)
             
-            for idx, char in enumerate(hangul_chars):
-                print(f"{char} \t {idx+1}/{len(hangul_chars)}")
-                comps = kor.decompose(char)
-                comps = torch.tensor(comps, device='cuda')
-                comps = comps.unsqueeze(0)
+            # # --------------------------- added ---------------------------
+            # for idx, char in enumerate(hangul_chars):
+            #     # print(f"{char} \t {idx+1}/{len(hangul_chars)}")
+            #     comps = kor.decompose(char)
+            #     comps = torch.tensor(comps, device='cuda')
+            #     comps = comps.unsqueeze(0)
 
-                try:
-                    gen_out = gen.read_decode(trg_ids[0].unsqueeze(0), comps)
-                except KeyError:
-                    continue
-                # gen_out = (gen_out - gen_out.min()) / (gen_out.max() - gen_out.min() + 1e-5)
-                # gen_out = gen_out[0].permute(1, 2, 0)
-                # gen_out = gen_out.cpu().numpy()
-                gen_out = gen_out[0]
-                utils.save_tensor_to_image(gen_out, f"/home/dev/dmfont/results/Jinbeop/{char}.png")
-                
-                
+            #     try:
+            #         gen_out = gen.read_decode(trg_ids[0].unsqueeze(0), comps)
+            #     except KeyError:
+            #         continue
+            #     # gen_out = (gen_out - gen_out.min()) / (gen_out.max() - gen_out.min() + 1e-5)
+            #     # gen_out = gen_out[0].permute(1, 2, 0)
+            #     # gen_out = gen_out.cpu().numpy()
+            #     # gen_out = gen_out[0]
+            #     # utils.save_tensor_to_image(gen_out, f"/home/dev/dmfont/results/Jinbeop/{char}.png")
+            # # --------------------------------------------------------------
+            
             out = gen.read_decode(trg_ids, trg_comp_ids)
             B = len(out)
 
