@@ -385,12 +385,12 @@ def eval_ckpt():
         "--name", help="name is used for directory name of the user-study generation results",
         default='JinbeopUnhae'
     )
-    parser.add_argument("--resume", default='/home/dev/dmfont/checkpoints/250717_04-46-31_test/150000-test.pth')
+    parser.add_argument("--resume", default='/home/dev/dmfont/experiments/checkpoints/250831_05-11-52_test/last.pth')
     parser.add_argument("--img_dir", default='./results')
     parser.add_argument("--config_paths", nargs="+", default=['cfgs/kor.yaml'])
     parser.add_argument("--show", action="store_true", default=False)
     parser.add_argument(
-        "--mode", default="cv-save",
+        "--mode", default="user-study",
         help="eval (default) / cv-save / user-study / user-study-save. "
              "`eval` generates comparable grid and computes pixel-level CV scores. "
              "`cv-save` generates and saves all target characters in CV. "

@@ -21,7 +21,7 @@ from models import MACore
 
 def setup(description):
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('--resume', default='/home/dev/dmfont/experiments/checkpoints/250717_04-46-31_test/150000-test.pth')
+    parser.add_argument('--resume', default='/home/dev/dmfont/experiments/checkpoints/250831_05-11-52_test/last.pth')
     parser.add_argument("--img_dir", default='./results')
     parser.add_argument("--config_paths", nargs="+", default=['cfgs/kor.yaml'])
     
@@ -128,7 +128,7 @@ def main():
                 try:
                     cidx    = char2idx[char]
                 except KeyError:
-                    # print(f'missing characters: {char}')
+                    print(f'missing characters: {char}')
                     continue
                 
                 style_image = f['dataset']['images'][cidx]
@@ -223,8 +223,8 @@ def main():
 if __name__ == '__main__':
     args, cfg = setup('custom handwriting model evaluation')
 
-    hdf5_paths = list(cfg['data_dir'].glob("*.hdf5"))
-    # hdf5_path = "/home/dev/dmfont/datasets/hdf5/JinbeopUnhae_ver2.hdf5"
+    # hdf5_paths = list(cfg['data_dir'].glob("*.hdf5"))
+    hdf5_paths = ["/home/dev/dmfont/datasets/hdf5/JinbeopUnhae_ver2.hdf5"]
     save_dir = "/home/dev/dmfont/results/Jinbeop"
     
     os.makedirs(save_dir, exist_ok=True)

@@ -25,3 +25,5 @@ test_us/
 *.jpg
 *.hdf5
 experiments/
+*.zip
+*.txt
